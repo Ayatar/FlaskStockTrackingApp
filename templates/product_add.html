@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block title %}Add Product - Stock Tracking System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-plus-circle"></i> Add New Product</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('product_list') }}">Products</a></li>
+                    <li class="breadcrumb-item active">Add Product</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{{ url_for('product_list') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Products
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cube"></i> Product Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="productForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <!-- Product Name -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.name.id }}" class="form-label">
+                                <i class="fas fa-tag"></i> {{ form.name.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), 
+                                         placeholder="Enter product name") }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Barcode -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.barcode.id }}" class="form-label">
+                                <i class="fas fa-barcode"></i> {{ form.barcode.label.text }}
+                            </label>
+                            <div class="input-group">
+                                {{ form.barcode(class="form-control" + (" is-invalid" if form.barcode.errors else ""), 
+                                               placeholder="Enter or scan barcode") }}
+                                <button type="button" class="btn btn-outline-secondary" onclick="generateBarcode()">
+                                    <i class="fas fa-magic"></i> Generate
+                                </button>
+                            </div>
+                            {% if form.barcode.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.barcode.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Optional - Leave empty if not available</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Category -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.category_id.id }}" class="form-label">
+                                <i class="fas fa-folder"></i> {{ form.category_id.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.category_id(class="form-select" + (" is-invalid" if form.category_id.errors else "")) }}
+                            {% if form.category_id.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.category_id.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Price -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.price.id }}" class="form-label">
+                                <i class="fas fa-dollar-sign"></i> {{ form.price.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.price(class="form-control" + (" is-invalid" if form.price.errors else ""), 
+                                             placeholder="0.00", step="0.01", min="0") }}
+                            </div>
+                            {% if form.price.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.price.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Initial Stock -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.stock.id }}" class="form-label">
+                                <i class="fas fa-boxes"></i> {{ form.stock.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.stock(class="form-control" + (" is-invalid" if form.stock.errors else ""), 
+                                         placeholder="0", min="0", oninput="calculateValue()") }}
+                            {% if form.stock.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.stock.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Initial stock quantity</small>
+                        </div>
+
+                        <!-- Minimum Stock -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.min_stock.id }}" class="form-label">
+                                <i class="fas fa-exclamation-triangle"></i> {{ form.min_stock.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.min_stock(class="form-control" + (" is-invalid" if form.min_stock.errors else ""), 
+                                             placeholder="10", min="0") }}
+                            {% if form.min_stock.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.min_stock.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Alert when stock falls below this level</small>
+                        </div>
+                    </div>
+
+                    <!-- Calculated Values Display -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-calculator"></i> Calculated Values
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <small class="text-muted">Total Value:</small>
+                                            <div class="h5 text-success" id="totalValue">$0.00</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <small class="text-muted">Stock Status:</small>
+                                            <div id="stockStatus">
+                                                <span class="badge bg-secondary">Not Calculated</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <small class="text-muted">Category:</small>
+                                            <div id="selectedCategory">
+                                                <span class="badge bg-info" id="categoryName">None Selected</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                                <i class="fas fa-undo"></i> Reset Form
+                            </button>
+                            <button type="button" class="btn btn-outline-info" onclick="previewProduct()">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('product_list') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success" id="submitBtn">
+                                <i class="fas fa-save"></i> Add Product
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye"></i> Product Preview
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Product Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Name:</strong></td>
+                                        <td id="previewName">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Barcode:</strong></td>
+                                        <td id="previewBarcode">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Category:</strong></td>
+                                        <td id="previewCategory">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Price:</strong></td>
+                                        <td id="previewPrice">-</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Stock Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Initial Stock:</strong></td>
+                                        <td id="previewStock">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Minimum Stock:</strong></td>
+                                        <td id="previewMinStock">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Total Value:</strong></td>
+                                        <td id="previewTotalValue">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Status:</strong></td>
+                                        <td id="previewStatus">-</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" onclick="submitFormFromPreview()">
+                    <i class="fas fa-save"></i> Confirm & Add Product
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function calculateValue() {
+        const price = parseFloat(document.getElementById('{{ form.price.id }}').value) || 0;
+        const stock = parseInt(document.getElementById('{{ form.stock.id }}').value) || 0;
+        const minStock = parseInt(document.getElementById('{{ form.min_stock.id }}').value) || 0;
+        
+        const totalValue = price * stock;
+        document.getElementById('totalValue').textContent = '$' + totalValue.toFixed(2);
+        
+        // Update stock status
+        const statusElement = document.getElementById('stockStatus');
+        if (stock === 0) {
+            statusElement.innerHTML = '<span class="badge bg-secondary">No Stock</span>';
+        } else if (stock <= minStock) {
+            statusElement.innerHTML = '<span class="badge bg-danger">Critical Level</span>';
+        } else {
+            statusElement.innerHTML = '<span class="badge bg-success">Normal Level</span>';
+        }
+    }
+
+    function updateCategoryDisplay() {
+        const categorySelect = document.getElementById('{{ form.category_id.id }}');
+        const categoryName = document.getElementById('categoryName');
+        
+        if (categorySelect.value) {
+            categoryName.textContent = categorySelect.options[categorySelect.selectedIndex].text;
+            categoryName.className = 'badge bg-info';
+        } else {
+            categoryName.textContent = 'None Selected';
+            categoryName.className = 'badge bg-secondary';
+        }
+    }
+
+    function generateBarcode() {
+        // Generate a random 13-digit barcode
+        const barcode = Math.floor(Math.random() * 9000000000000) + 1000000000000;
+        document.getElementById('{{ form.barcode.id }}').value = barcode.toString();
+    }
+
+    function resetForm() {
+        if (confirm('Are you sure you want to reset the form? All entered data will be lost.')) {
+            document.getElementById('productForm').reset();
+            calculateValue();
+            updateCategoryDisplay();
+        }
+    }
+
+    function previewProduct() {
+        // Get form values
+        const name = document.getElementById('{{ form.name.id }}').value;
+        const barcode = document.getElementById('{{ form.barcode.id }}').value;
+        const categorySelect = document.getElementById('{{ form.category_id.id }}');
+        const price = parseFloat(document.getElementById('{{ form.price.id }}').value) || 0;
+        const stock = parseInt(document.getElementById('{{ form.stock.id }}').value) || 0;
+        const minStock = parseInt(document.getElementById('{{ form.min_stock.id }}').value) || 0;
+
+        // Update preview modal
+        document.getElementById('previewName').textContent = name || '-';
+        document.getElementById('previewBarcode').textContent = barcode || 'Not set';
+        document.getElementById('previewCategory').textContent = categorySelect.value ? 
+            categorySelect.options[categorySelect.selectedIndex].text : '-';
+        document.getElementById('previewPrice').textContent = '$' + price.toFixed(2);
+        document.getElementById('previewStock').textContent = stock.toString();
+        document.getElementById('previewMinStock').textContent = minStock.toString();
+        document.getElementById('previewTotalValue').textContent = '$' + (price * stock).toFixed(2);
+        
+        // Status
+        let statusHtml;
+        if (stock === 0) {
+            statusHtml = '<span class="badge bg-secondary">No Stock</span>';
+        } else if (stock <= minStock) {
+            statusHtml = '<span class="badge bg-danger">Critical Level</span>';
+        } else {
+            statusHtml = '<span class="badge bg-success">Normal Level</span>';
+        }
+        document.getElementById('previewStatus').innerHTML = statusHtml;
+
+        // Show modal
+        new bootstrap.Modal(document.getElementById('previewModal')).show();
+    }
+
+    function submitFormFromPreview() {
+        bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+        document.getElementById('productForm').submit();
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        // Calculate values on input change
+        ['{{ form.price.id }}', '{{ form.stock.id }}', '{{ form.min_stock.id }}'].forEach(id => {
+            document.getElementById(id).addEventListener('input', calculateValue);
+        });
+
+        // Update category display on change
+        document.getElementById('{{ form.category_id.id }}').addEventListener('change', updateCategoryDisplay);
+
+        // Initial calculations
+        calculateValue();
+        updateCategoryDisplay();
+
+        // Form validation
+        document.getElementById('productForm').addEventListener('submit', function(e) {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding Product...';
+            submitBtn.disabled = true;
+        });
+    });
+
+    // Barcode scanner support (if available)
+    document.addEventListener('keydown', function(e) {
+        // Simple barcode scanner simulation - scans when focusing on barcode field
+        const barcodeField = document.getElementById('{{ form.barcode.id }}');
+        if (document.activeElement === barcodeField && e.key === 'Enter') {
+            e.preventDefault();
+            // Focus next field
+            document.getElementById('{{ form.category_id.id }}').focus();
+        }
+    });
+</script>
+{% endblock %}

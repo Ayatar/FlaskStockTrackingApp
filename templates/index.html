@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Stock Tracking System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item active">Home</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex gap-2 flex-column flex-md-row align-items-md-center">
+            <a href="{{ url_for('export_dashboard_pdf') }}" class="btn btn-danger btn-responsive">
+                <i class="fas fa-file-pdf"></i> Print Report
+            </a>
+            <span class="text-muted align-self-center">{{ "October 3, 2025" }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card info">
+            <div class="card-body">
+                <i class="fas fa-cube fa-2x mb-3"></i>
+                <h3>{{ total_product }}</h3>
+                <p class="mb-0">Total Products</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card success">
+            <div class="card-body">
+                <i class="fas fa-boxes fa-2x mb-3"></i>
+                <h3>{{ "{:,}".format(total_stock) }}</h3>
+                <p class="mb-0">Total Stock</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card {% if critical_stock > 0 %}danger{% else %}success{% endif %}">
+            <div class="card-body">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                <h3>{{ critical_stock }}</h3>
+                <p class="mb-0">Critical Stock</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <i class="fas fa-dollar-sign fa-2x mb-3"></i>
+                <h3>${{ "{:,.2f}".format(total_value) }}</h3>
+                <p class="mb-0">Total Value</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Critical Stock Products -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Critical Stock Alert
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if critical_products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover responsive-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Current Stock</th>
+                                    <th>Min Stock</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in critical_products %}
+                                <tr>
+                                    <td data-label="Product">
+                                        <strong>{{ product.name }}</strong>
+                                        {% if product.barcode %}
+                                            <br><small class="text-muted">{{ product.barcode }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Current Stock">
+                                        <span class="badge bg-danger">{{ product.stock }}</span>
+                                    </td>
+                                    <td data-label="Min Stock">{{ product.min_stock }}</td>
+                                    <td data-label="Status">
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-exclamation-triangle"></i> Critical
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('stock_movement') }}" class="btn btn-danger">
+                            <i class="fas fa-plus"></i> Add Stock
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center text-success">
+                        <i class="fas fa-check-circle fa-3x mb-3"></i>
+                        <p class="lead">All products have sufficient stock!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Stock Movements -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history"></i> Recent Stock Movements
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if last_movements %}
+                    <div class="table-responsive">
+                        <table class="table table-hover responsive-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movement in last_movements %}
+                                <tr>
+                                    <td data-label="Product">
+                                        <strong>{{ movement.product.name }}</strong>
+                                    </td>
+                                    <td data-label="Type">
+                                        {% if movement.type == 'inflow' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-arrow-up"></i> Inflow
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-arrow-down"></i> Outflow
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Amount">
+                                        {% if movement.type == 'inflow' %}
+                                            <span class="text-success">+{{ movement.amount }}</span>
+                                        {% else %}
+                                            <span class="text-warning">-{{ movement.amount }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Date">
+                                        <small class="text-muted">
+                                            {{ movement.date.strftime('%d/%m/%Y %H:%M') }}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('stock_movement') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> New Movement
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p class="lead">No stock movements yet</p>
+                        <a href="{{ url_for('stock_movement') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add First Movement
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('add_product') }}" class="btn btn-success btn-lg w-100">
+                            <i class="fas fa-plus-circle fa-2x d-block mb-2"></i>
+                            Add New Product
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('product_list') }}" class="btn btn-info btn-lg w-100">
+                            <i class="fas fa-list fa-2x d-block mb-2"></i>
+                            View All Products
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('stock_movement') }}" class="btn btn-warning btn-lg w-100">
+                            <i class="fas fa-exchange-alt fa-2x d-block mb-2"></i>
+                            Stock Movement
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-primary btn-lg w-100" onclick="window.print()">
+                            <i class="fas fa-print fa-2x d-block mb-2"></i>
+                            Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Statistics Chart -->
+{% if total_product > 0 %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie"></i> Stock Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="stockChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if total_product > 0 %}
+<script>
+    // Stock Overview Chart
+    const ctx = document.getElementById('stockChart').getContext('2d');
+    const stockChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Normal Stock', 'Critical Stock'],
+            datasets: [{
+                data: [{{ total_product - critical_stock }}, {{ critical_stock }}],
+                backgroundColor: [
+                    '#27ae60',
+                    '#e74c3c'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        font: {
+                            size: 14
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+
+<script>
+    // Auto refresh every 5 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+</script>
+{% endblock %}

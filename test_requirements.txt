@@ -1,0 +1,17 @@
+# Test Requirements
+# Install with: pip install -r test_requirements.txt
+
+pytest>=7.0.0
+pytest-flask>=1.2.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+coverage>=7.0.0
+
+# For performance testing
+pytest-benchmark>=4.0.0
+
+# For HTML test reports
+pytest-html>=3.0.0
+
+# For parallel test execution
+pytest-xdist>=3.0.0

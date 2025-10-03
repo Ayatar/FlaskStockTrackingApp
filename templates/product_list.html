@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}Products - Stock Tracking System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-cube"></i> Products</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item active">Products</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex flex-column flex-md-row gap-2">
+            <a href="{{ url_for('add_product') }}" class="btn btn-success btn-responsive">
+                <i class="fas fa-plus"></i> Add New Product
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Search Product</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           placeholder="Search by product name..." value="{{ search or '' }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}" 
+                                {% if selected_category == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <div class="d-flex w-100 flex-column flex-md-row gap-2">
+                        <button type="submit" class="btn btn-primary btn-responsive">
+                            <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <a href="{{ url_for('product_list') }}" class="btn btn-outline-secondary btn-responsive">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-info btn-responsive" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> Export
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Products Table -->
+<div class="card">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list"></i> Product List 
+            <span class="badge bg-light text-dark ms-2">{{ products.total }} products</span>
+        </h5>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="toggleView('table')" id="tableView">
+                <i class="fas fa-table"></i> Table View
+            </button>
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="toggleView('grid')" id="gridView">
+                <i class="fas fa-th"></i> Grid View
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if products.items %}
+            <!-- Table View -->
+            <div id="tableViewContent" class="table-responsive">
+                <table class="table table-hover mb-0 responsive-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Min Stock</th>
+                            <th>Status</th>
+                            <th>Value</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in products.items %}
+                        <tr {% if product.critical_stock %}class="table-warning"{% endif %}>
+                            <td data-label="Product">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                             style="width: 40px; height: 40px;">
+                                            <i class="fas fa-cube"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <strong class="d-block">{{ product.name }}</strong>
+                                        {% if product.barcode %}
+                                            <small class="text-muted">
+                                                <i class="fas fa-barcode"></i> {{ product.barcode }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td data-label="Category">
+                                <span class="badge bg-info">{{ product.categorie.name }}</span>
+                            </td>
+                            <td data-label="Price">
+                                <strong>${{ "%.2f"|format(product.price) }}</strong>
+                            </td>
+                            <td data-label="Stock">
+                                <span class="badge {% if product.critical_stock %}bg-danger{% else %}bg-success{% endif %}">
+                                    {{ product.stock }}
+                                </span>
+                            </td>
+                            <td data-label="Min Stock">{{ product.min_stock }}</td>
+                            <td data-label="Status">
+                                {% if product.critical_stock %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-exclamation-triangle"></i> Critical
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> Normal
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Value">
+                                <strong>${{ "%.2f"|format(product.stock * product.price) }}</strong>
+                            </td>
+                            <td data-label="Actions">
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('edit_product', id=product.id) }}" 
+                                       class="btn btn-outline-primary btn-sm" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('stock_movement') }}?product={{ product.id }}" 
+                                       class="btn btn-outline-success btn-sm" title="Stock Movement">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    <button class="btn btn-outline-danger btn-sm" 
+                                            onclick="deleteProduct({{ product.id }}, '{{ product.name }}')" 
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Grid View -->
+            <div id="gridViewContent" class="d-none p-3">
+                <div class="row">
+                    {% for product in products.items %}
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="card h-100 {% if product.critical_stock %}border-warning{% endif %}">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <strong class="text-truncate">{{ product.name }}</strong>
+                                {% if product.critical_stock %}
+                                    <span class="badge bg-danger">Critical</span>
+                                {% else %}
+                                    <span class="badge bg-success">Normal</span>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Category:</small>
+                                        <div><span class="badge bg-info">{{ product.categorie.name }}</span></div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Price:</small>
+                                        <div><strong>${{ "%.2f"|format(product.price) }}</strong></div>
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Stock:</small>
+                                        <div>
+                                            <span class="badge {% if product.critical_stock %}bg-danger{% else %}bg-success{% endif %}">
+                                                {{ product.stock }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Min Stock:</small>
+                                        <div>{{ product.min_stock }}</div>
+                                    </div>
+                                </div>
+                                {% if product.barcode %}
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-barcode"></i> {{ product.barcode }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                                <div class="mb-3">
+                                    <small class="text-muted">Total Value:</small>
+                                    <div><strong>${{ "%.2f"|format(product.stock * product.price) }}</strong></div>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light">
+                                <div class="btn-group w-100" role="group">
+                                    <a href="{{ url_for('edit_product', id=product.id) }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('stock_movement') }}?product={{ product.id }}" 
+                                       class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    <button class="btn btn-outline-danger btn-sm" 
+                                            onclick="deleteProduct({{ product.id }}, '{{ product.name }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if products.pages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Products pagination">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if products.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('product_list', page=products.prev_num, category=selected_category, search=search) }}">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in products.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != products.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('product_list', page=page_num, category=selected_category, search=search) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if products.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('product_list', page=products.next_num, category=selected_category, search=search) }}">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                
+                <div class="text-center mt-2">
+                    <small class="text-muted">
+                        Showing {{ products.per_page * (products.page - 1) + 1 }} to 
+                        {{ products.per_page * products.page if products.per_page * products.page < products.total else products.total }} 
+                        of {{ products.total }} products
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No products found</h5>
+                {% if search or selected_category %}
+                    <p class="text-muted">Try adjusting your search criteria or <a href="{{ url_for('product_list') }}">view all products</a></p>
+                {% else %}
+                    <p class="text-muted">Start by adding your first product</p>
+                    <a href="{{ url_for('add_product') }}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Add First Product
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="deleteModalBody">
+                <p>Are you sure you want to delete the product <strong id="productName"></strong>?</p>
+                <p class="text-muted">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">
+                    <i class="fas fa-trash"></i> Delete Product
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Set the export URL for JavaScript
+    window.exportProductsUrl = "{{ url_for('export_products_excel') }}";
+</script>
+<script src="{{ url_for('static', filename='js/product_list.js') }}"></script>
+{% endblock %}

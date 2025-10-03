@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Product - Stock Tracking System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-edit"></i> Edit Product</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('product_list') }}">Products</a></li>
+                    <li class="breadcrumb-item active">Edit {{ product.name }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{{ url_for('product_list') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Products
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Edit Form -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cube"></i> Product Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="productForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <!-- Product Name -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.name.id }}" class="form-label">
+                                <i class="fas fa-tag"></i> {{ form.name.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), 
+                                         placeholder="Enter product name") }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Barcode -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.barcode.id }}" class="form-label">
+                                <i class="fas fa-barcode"></i> {{ form.barcode.label.text }}
+                            </label>
+                            <div class="input-group">
+                                {{ form.barcode(class="form-control" + (" is-invalid" if form.barcode.errors else ""), 
+                                               placeholder="Enter or scan barcode") }}
+                                <button type="button" class="btn btn-outline-secondary" onclick="generateBarcode()">
+                                    <i class="fas fa-magic"></i> Generate
+                                </button>
+                            </div>
+                            {% if form.barcode.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.barcode.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Optional - Leave empty if not available</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Category -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.category_id.id }}" class="form-label">
+                                <i class="fas fa-folder"></i> {{ form.category_id.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.category_id(class="form-select" + (" is-invalid" if form.category_id.errors else "")) }}
+                            {% if form.category_id.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.category_id.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Price -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.price.id }}" class="form-label">
+                                <i class="fas fa-dollar-sign"></i> {{ form.price.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.price(class="form-control" + (" is-invalid" if form.price.errors else ""), 
+                                             placeholder="0.00", step="0.01", min="0", oninput="calculateValue()") }}
+                            </div>
+                            {% if form.price.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.price.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Minimum Stock -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.min_stock.id }}" class="form-label">
+                                <i class="fas fa-exclamation-triangle"></i> {{ form.min_stock.label.text }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.min_stock(class="form-control" + (" is-invalid" if form.min_stock.errors else ""), 
+                                             placeholder="10", min="0", oninput="calculateValue()") }}
+                            {% if form.min_stock.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.min_stock.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">Alert when stock falls below this level</small>
+                        </div>
+
+                        <!-- Current Stock (Read Only Display) -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-boxes"></i> Current Stock
+                            </label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" value="{{ product.stock }}" readonly>
+                                <span class="input-group-text">
+                                    {% if product.critical_stock %}
+                                        <span class="badge bg-danger">Critical</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Normal</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <small class="form-text text-muted">Use Stock Movement to change quantity</small>
+                        </div>
+                    </div>
+
+                    <!-- Current Values Display -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-calculator"></i> Current Values
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Current Stock:</small>
+                                            <div class="h5">{{ product.stock }}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Current Value:</small>
+                                            <div class="h5 text-success" id="currentValue">
+                                                ${{ "%.2f"|format(product.stock * product.price) }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">New Value:</small>
+                                            <div class="h5 text-info" id="newValue">
+                                                ${{ "%.2f"|format(product.stock * product.price) }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Status:</small>
+                                            <div id="stockStatus">
+                                                {% if product.critical_stock %}
+                                                    <span class="badge bg-danger">Critical Level</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">Normal Level</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Buttons -->
+                        <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                            <div class="d-flex flex-column flex-md-row gap-2 w-100">
+                                <button type="button" class="btn btn-outline-warning btn-responsive" onclick="resetToOriginal()">
+                                <i class="fas fa-undo"></i> Reset to Original
+                            </button>
+                        </div>
+                            <div class="d-flex flex-column flex-md-row gap-2 w-100">
+                                <a href="{{ url_for('product_list') }}" class="btn btn-secondary btn-responsive">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                                <button type="submit" class="btn btn-primary btn-responsive" id="submitBtn">
+                                <i class="fas fa-save"></i> Update Product
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Info Sidebar -->
+    <div class="col-lg-4">
+        <!-- Current Product Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Current Product Info
+                </h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <td><strong>Name:</strong></td>
+                        <td>{{ product.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Barcode:</strong></td>
+                        <td>{{ product.barcode or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Category:</strong></td>
+                        <td><span class="badge bg-info">{{ product.categorie.name }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Price:</strong></td>
+                        <td>${{ "%.2f"|format(product.price) }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Stock:</strong></td>
+                        <td>
+                            <span class="badge {% if product.critical_stock %}bg-danger{% else %}bg-success{% endif %}">
+                                {{ product.stock }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Min Stock:</strong></td>
+                        <td>{{ product.min_stock }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Created:</strong></td>
+                        <td>{{ product.created_at.strftime('%d/%m/%Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Updated:</strong></td>
+                        <td>{{ product.updated_at.strftime('%d/%m/%Y') }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('stock_movement') }}?product={{ product.id }}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Add Stock
+                    </a>
+                    <a href="{{ url_for('stock_movement') }}?product={{ product.id }}&type=outflow" class="btn btn-warning">
+                        <i class="fas fa-minus"></i> Remove Stock
+                    </a>
+                    <button class="btn btn-info" onclick="viewMovements()">
+                        <i class="fas fa-history"></i> View Movements
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteProduct()">
+                        <i class="fas fa-trash"></i> Delete Product
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Alert -->
+        {% if product.critical_stock %}
+        <div class="alert alert-danger" role="alert">
+            <h6 class="alert-heading">
+                <i class="fas fa-exclamation-triangle"></i> Critical Stock Alert!
+            </h6>
+            <p class="mb-2">This product is at critical stock level.</p>
+            <p class="mb-0">
+                <strong>Current:</strong> {{ product.stock }} | 
+                <strong>Minimum:</strong> {{ product.min_stock }}
+            </p>
+            <hr>
+            <div class="mb-0">
+                <a href="{{ url_for('stock_movement') }}?product={{ product.id }}" class="btn btn-danger btn-sm">
+                    <i class="fas fa-plus"></i> Add Stock Now
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stock Movements Modal -->
+<div class="modal fade" id="movementsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-history"></i> Stock Movements - {{ product.name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if product.movements %}
+                <div class="table-responsive">
+                    <table class="table table-hover responsive-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Previous</th>
+                                <th>New</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for movement in product.movements[-10:] %}
+                            <tr>
+                                <td data-label="Date">
+                                    <small>{{ movement.date.strftime('%d/%m/%Y %H:%M') }}</small>
+                                </td>
+                                <td data-label="Type">
+                                    {% if movement.type == 'inflow' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-arrow-up"></i> In
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-arrow-down"></i> Out
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Amount">
+                                    {% if movement.type == 'inflow' %}
+                                        <span class="text-success">+{{ movement.amount }}</span>
+                                    {% else %}
+                                        <span class="text-warning">-{{ movement.amount }}</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Previous">{{ movement.previous_stock }}</td>
+                                <td data-label="New">{{ movement.new_stock }}</td>
+                                <td data-label="Description">
+                                    <small>{{ movement.description or '-' }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>No stock movements found for this product.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{{ url_for('stock_movement') }}?product={{ product.id }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> New Movement
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the product <strong>{{ product.name }}</strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Warning:</strong> This action cannot be undone. All stock movements for this product will also be deleted.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">
+                    <i class="fas fa-trash"></i> Delete Product
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Store original values
+    const originalValues = {
+        name: '{{ product.name }}',
+        barcode: '{{ product.barcode or "" }}',
+        price: {{ product.price }},
+        min_stock: {{ product.min_stock }},
+        category_id: {{ product.category_id }}
+    };
+
+    function calculateValue() {
+        const price = parseFloat(document.getElementById('{{ form.price.id }}').value) || 0;
+        const currentStock = {{ product.stock }};
+        const minStock = parseInt(document.getElementById('{{ form.min_stock.id }}').value) || 0;
+        
+        const newValue = price * currentStock;
+        document.getElementById('newValue').textContent = '$' + newValue.toFixed(2);
+        
+        // Update stock status based on new min stock
+        const statusElement = document.getElementById('stockStatus');
+        if (currentStock <= minStock) {
+            statusElement.innerHTML = '<span class="badge bg-danger">Critical Level</span>';
+        } else {
+            statusElement.innerHTML = '<span class="badge bg-success">Normal Level</span>';
+        }
+    }
+
+    function generateBarcode() {
+        // Generate a random 13-digit barcode
+        const barcode = Math.floor(Math.random() * 9000000000000) + 1000000000000;
+        document.getElementById('{{ form.barcode.id }}').value = barcode.toString();
+    }
+
+    function resetToOriginal() {
+        if (confirm('Are you sure you want to reset all fields to their original values?')) {
+            document.getElementById('{{ form.name.id }}').value = originalValues.name;
+            document.getElementById('{{ form.barcode.id }}').value = originalValues.barcode;
+            document.getElementById('{{ form.price.id }}').value = originalValues.price;
+            document.getElementById('{{ form.min_stock.id }}').value = originalValues.min_stock;
+            document.getElementById('{{ form.category_id.id }}').value = originalValues.category_id;
+            calculateValue();
+        }
+    }
+
+    function viewMovements() {
+        new bootstrap.Modal(document.getElementById('movementsModal')).show();
+    }
+
+    function deleteProduct() {
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        // Calculate values on input change
+        ['{{ form.price.id }}', '{{ form.min_stock.id }}'].forEach(id => {
+            document.getElementById(id).addEventListener('input', calculateValue);
+        });
+
+        // Initial calculation
+        calculateValue();
+
+        // Form validation
+        document.getElementById('productForm').addEventListener('submit', function(e) {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating Product...';
+            submitBtn.disabled = true;
+        });
+
+        // Delete confirmation
+        document.getElementById('confirmDelete').addEventListener('click', function() {
+            // In a real application, you would make an AJAX call to delete the product
+            alert('Delete functionality would be implemented here');
+            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+        });
+    });
+
+    // Check for unsaved changes
+    let formChanged = false;
+    document.getElementById('productForm').addEventListener('input', function() {
+        formChanged = true;
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // Reset form changed flag on submit
+    document.getElementById('productForm').addEventListener('submit', function() {
+        formChanged = false;
+    });
+</script>
+{% endblock %}

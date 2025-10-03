@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}Report Results - Stock Tracking System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+    }
+    .stat-card.success { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+    .stat-card.warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
+    .stat-card.danger { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .stat-card.info { background: linear-gradient(135deg, #17a2b8, #3498db); }
+    
+    @media print {
+        .no-print { display: none !important; }
+        .card { border: 1px solid #000 !important; box-shadow: none !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header no-print">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-chart-line"></i> Report Results</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('reports') }}">Reports</a></li>
+                    <li class="breadcrumb-item active">Results</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex flex-column flex-md-row gap-2">
+            <button class="btn btn-outline-primary btn-responsive" onclick="window.print()">
+                <i class="fas fa-print"></i> Print Report
+            </button>
+            <a href="{{ url_for('reports') }}" class="btn btn-outline-secondary btn-responsive">
+                <i class="fas fa-arrow-left"></i> Back to Reports
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Report Header -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <div class="row align-items-center">
+            <div class="col">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-alt"></i> Stock Report
+                    {% if data.category_filter %}
+                        - {{ data.category_filter.name }} Category
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="col-12 col-md-auto no-print mt-3 mt-md-0">
+                <div class="d-flex flex-column flex-md-row gap-2">
+                    <button class="btn btn-outline-light btn-sm btn-responsive" onclick="exportCurrentReport('excel')">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </button>
+                    <button class="btn btn-outline-light btn-sm btn-responsive" onclick="exportCurrentReport('pdf')">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Date Range:</strong> 
+                    {{ data.date_range.start.strftime('%B %d, %Y') }} - {{ data.date_range.end.strftime('%B %d, %Y') }}
+                </p>
+                <p class="mb-1"><strong>Category:</strong> 
+                    {{ data.category_filter.name if data.category_filter else 'All Categories' }}
+                </p>
+            </div>
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Generated:</strong> {{ "October 3, 2025, 12:00 PM" }}</p>
+                <p class="mb-1"><strong>Total Products:</strong> {{ data.products|length }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="stat-card info">
+            <i class="fas fa-cube fa-2x mb-2"></i>
+            <h3>{{ data.products|length }}</h3>
+            <p class="mb-0">Total Products</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card success">
+            <i class="fas fa-arrow-up fa-2x mb-2"></i>
+            <h3>{{ data.total_inflow }}</h3>
+            <p class="mb-0">Stock Inflow</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card warning">
+            <i class="fas fa-arrow-down fa-2x mb-2"></i>
+            <h3>{{ data.total_outflow }}</h3>
+            <p class="mb-0">Stock Outflow</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card {% if data.net_movement >= 0 %}success{% else %}danger{% endif %}">
+            <i class="fas fa-balance-scale fa-2x mb-2"></i>
+            <h3>{{ data.net_movement }}</h3>
+            <p class="mb-0">Net Movement</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Products Summary -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-boxes"></i> Products Summary
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if data.products %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm responsive-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in data.products %}
+                            <tr>
+                                <td data-label="Product">
+                                    <strong>{{ product.name }}</strong>
+                                    <br><small class="text-muted">{{ product.categorie.name }}</small>
+                                </td>
+                                <td data-label="Stock">{{ product.stock }}</td>
+                                <td data-label="Status">
+                                    {% if product.critical_stock %}
+                                        <span class="badge bg-danger">Critical</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Normal</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Value">${{ "%.2f"|format(product.stock * product.price) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-dark">
+                                <th colspan="3">Total Value:</th>
+                                <th>${{ "%.2f"|format(data.products|sum(attribute='stock')|float * data.products|map(attribute='price')|sum / data.products|length if data.products else 0) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>No products found for the selected criteria</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Movements -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-exchange-alt"></i> Recent Movements ({{ data.movements|length }})
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if data.movements %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm responsive-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for movement in data.movements[:20] %}
+                            <tr>
+                                <td data-label="Date">
+                                    <small>{{ movement.date.strftime('%m/%d %H:%M') }}</small>
+                                </td>
+                                <td data-label="Product">
+                                    <small>{{ movement.product.name[:20] }}{% if movement.product.name|length > 20 %}...{% endif %}</small>
+                                </td>
+                                <td data-label="Type">
+                                    {% if movement.type == 'inflow' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-arrow-up"></i>
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-arrow-down"></i>
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Amount">
+                                    {% if movement.type == 'inflow' %}
+                                        <span class="text-success">+{{ movement.amount }}</span>
+                                    {% else %}
+                                        <span class="text-warning">-{{ movement.amount }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if data.movements|length > 20 %}
+                            <tr class="no-responsive">
+                                <td colspan="4" class="text-center text-muted">
+                                    <small>... and {{ data.movements|length - 20 }} more movements</small>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>No stock movements found for the selected period</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Critical Stock Alert -->
+{% set critical_products = data.products|selectattr('critical_stock')|list %}
+{% if critical_products %}
+<div class="row">
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Critical Stock Alert ({{ critical_products|length }} products)
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for product in critical_products %}
+                    <div class="col-md-4 mb-2">
+                        <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                            <div>
+                                <strong>{{ product.name }}</strong>
+                                <br><small class="text-muted">{{ product.categorie.name }}</small>
+                            </div>
+                            <span class="badge bg-danger">{{ product.stock }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Movement Chart -->
+{% if data.movements %}
+<div class="row mt-4 no-print">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-line"></i> Movement Trends
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="movementChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if data.movements %}
+<script>
+    // Movement Chart
+    const ctx = document.getElementById('movementChart').getContext('2d');
+    
+    // Process movement data for chart
+    const movements = {{ data.movements|tojson }};
+    const chartData = processMovementData(movements);
+    
+    function processMovementData(movements) {
+        const dailyData = {};
+        
+        movements.forEach(movement => {
+            const date = new Date(movement.date).toISOString().split('T')[0];
+            if (!dailyData[date]) {
+                dailyData[date] = { inflow: 0, outflow: 0 };
+            }
+            
+            if (movement.type === 'inflow') {
+                dailyData[date].inflow += movement.amount;
+            } else {
+                dailyData[date].outflow += movement.amount;
+            }
+        });
+        
+        const sortedDates = Object.keys(dailyData).sort();
+        const inflowData = sortedDates.map(date => dailyData[date].inflow);
+        const outflowData = sortedDates.map(date => dailyData[date].outflow);
+        
+        return {
+            labels: sortedDates.map(date => new Date(date).toLocaleDateString()),
+            datasets: [
+                {
+                    label: 'Stock Inflow',
+                    data: inflowData,
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Stock Outflow',
+                    data: outflowData,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        };
+    }
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+
+<script>
+    function exportCurrentReport(format) {
+        const form = document.createElement('form');
+        form.method = 'GET';
+        form.style.display = 'none';
+        
+        if (format === 'excel') {
+            form.action = '{{ url_for("export_excel") }}';
+        } else {
+            form.action = '{{ url_for("export_pdf") }}';
+        }
+        
+        // Add current filter parameters
+        const params = {
+            start_date: '{{ data.date_range.start.strftime("%Y-%m-%d") }}',
+            end_date: '{{ data.date_range.end.strftime("%Y-%m-%d") }}'
+        };
+        
+        {% if data.category_filter %}
+        params.category_id = '{{ data.category_filter.id }}';
+        {% endif %}
+        
+        Object.keys(params).forEach(key => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = params[key];
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    }
+</script>
+{% endblock %}

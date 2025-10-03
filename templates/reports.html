@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Stock Tracking System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-chart-bar"></i> Reports</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item active">Reports</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Report Filters -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-filter"></i> Report Filters
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('generate_report') }}" id="reportForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Date Range -->
+                    <div class="mb-3">
+                        <label for="{{ form.starting_date.id }}" class="form-label">
+                            <i class="fas fa-calendar-alt"></i> Starting Date
+                        </label>
+                        {{ form.starting_date(class="form-control" + (" is-invalid" if form.starting_date.errors else "")) }}
+                        {% if form.starting_date.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.starting_date.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.ending_date.id }}" class="form-label">
+                            <i class="fas fa-calendar-alt"></i> Ending Date
+                        </label>
+                        {{ form.ending_date(class="form-control" + (" is-invalid" if form.ending_date.errors else "")) }}
+                        {% if form.ending_date.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.ending_date.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Category Filter -->
+                    <div class="mb-4">
+                        <label for="{{ form.category_id.id }}" class="form-label">
+                            <i class="fas fa-folder"></i> Category Filter
+                        </label>
+                        {{ form.category_id(class="form-select" + (" is-invalid" if form.category_id.errors else "")) }}
+                        {% if form.category_id.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.category_id.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">Leave empty to include all categories</small>
+                    </div>
+
+                    <!-- Quick Date Ranges -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-clock"></i> Quick Date Ranges
+                        </label>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateRange(7)">
+                                Last 7 Days
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateRange(30)">
+                                Last 30 Days
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateRange(90)">
+                                Last 3 Months
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDateRange(365)">
+                                Last Year
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-chart-line"></i> Generate Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-download"></i> Export Options
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-success" onclick="exportReport('excel')">
+                        <i class="fas fa-file-excel"></i> Export to Excel
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="exportReport('pdf')">
+                        <i class="fas fa-file-pdf"></i> Export to PDF
+                    </button>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    Note: Exports will use the current filter settings
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Preview/Instructions -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle"></i> Report Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-light h-100">
+                            <div class="card-body">
+                                <i class="fas fa-chart-bar fa-3x text-primary mb-3"></i>
+                                <h5>Stock Analysis</h5>
+                                <p class="text-muted">Get detailed analysis of your stock levels, movements, and trends</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light h-100">
+                            <div class="card-body">
+                                <i class="fas fa-exchange-alt fa-3x text-success mb-3"></i>
+                                <h5>Movement History</h5>
+                                <p class="text-muted">Track all stock movements with detailed timestamps and descriptions</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light h-100">
+                            <div class="card-body">
+                                <i class="fas fa-download fa-3x text-info mb-3"></i>
+                                <h5>Export Options</h5>
+                                <p class="text-muted">Download reports in Excel or PDF format for sharing and archiving</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info" role="alert">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-lightbulb"></i> How to Generate Reports
+                    </h6>
+                    <ol class="mb-0">
+                        <li>Select your desired date range using the date pickers or quick buttons</li>
+                        <li>Choose a specific category or leave "All Categories" for comprehensive report</li>
+                        <li>Click "Generate Report" to view the results</li>
+                        <li>Use export buttons to download the report in your preferred format</li>
+                    </ol>
+                </div>
+
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-chart-pie"></i> Report Contents
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Product Information:</h6>
+                                <ul class="list-unstyled text-muted">
+                                    <li><i class="fas fa-check text-success"></i> Product names and categories</li>
+                                    <li><i class="fas fa-check text-success"></i> Current stock levels</li>
+                                    <li><i class="fas fa-check text-success"></i> Critical stock alerts</li>
+                                    <li><i class="fas fa-check text-success"></i> Total stock values</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Movement Analysis:</h6>
+                                <ul class="list-unstyled text-muted">
+                                    <li><i class="fas fa-check text-success"></i> Stock inflow/outflow summary</li>
+                                    <li><i class="fas fa-check text-success"></i> Movement history with dates</li>
+                                    <li><i class="fas fa-check text-success"></i> Net stock changes</li>
+                                    <li><i class="fas fa-check text-success"></i> Activity descriptions</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function setDateRange(days) {
+        const today = new Date();
+        const startDate = new Date(today.getTime() - (days * 24 * 60 * 60 * 1000));
+        
+        // Format dates as YYYY-MM-DD for HTML date inputs
+        const formatDate = (date) => {
+            return date.toISOString().split('T')[0];
+        };
+        
+        document.getElementById('{{ form.starting_date.id }}').value = formatDate(startDate);
+        document.getElementById('{{ form.ending_date.id }}').value = formatDate(today);
+    }
+
+    function exportReport(format) {
+        const startDate = document.getElementById('{{ form.starting_date.id }}').value;
+        const endDate = document.getElementById('{{ form.ending_date.id }}').value;
+        const categoryId = document.getElementById('{{ form.category_id.id }}').value;
+        
+        if (!startDate || !endDate) {
+            alert('Please select start and end dates first');
+            return;
+        }
+        
+        let url = `{{ url_for('export_excel') }}`;
+        if (format === 'pdf') {
+            url = `{{ url_for('export_pdf') }}`;
+        }
+        
+        const params = new URLSearchParams({
+            start_date: startDate,
+            end_date: endDate
+        });
+        
+        if (categoryId) {
+            params.append('category_id', categoryId);
+        }
+        
+        window.open(`${url}?${params.toString()}`, '_blank');
+    }
+
+    // Initialize with default date range (last 30 days)
+    document.addEventListener('DOMContentLoaded', function() {
+        setDateRange(30);
+        
+        // Form validation
+        document.getElementById('reportForm').addEventListener('submit', function(e) {
+            const startDate = new Date(document.getElementById('{{ form.starting_date.id }}').value);
+            const endDate = new Date(document.getElementById('{{ form.ending_date.id }}').value);
+            
+            if (startDate > endDate) {
+                e.preventDefault();
+                alert('Start date cannot be later than end date');
+                return false;
+            }
+            
+            const diffDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+            if (diffDays > 365) {
+                if (!confirm('You selected a date range longer than 1 year. This might result in a large report. Continue?')) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
