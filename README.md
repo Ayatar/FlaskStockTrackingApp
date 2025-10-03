@@ -141,16 +141,6 @@ FlaskStockTrackingApp/
     └── stok.db            # SQLite database (auto-created)
 ```
 
-### 📸 Screenshots
-
-#### Dashboard
-![Dashboard](https://via.placeholder.com/800x450.png?text=Dashboard+Screenshot)
-
-#### Product Management
-![Products](https://via.placeholder.com/800x450.png?text=Product+List+Screenshot)
-
-#### Stock Movement
-![Stock Movement](https://via.placeholder.com/800x450.png?text=Stock+Movement+Screenshot)
 
 ### 🤝 Contributing
 
@@ -291,16 +281,6 @@ FlaskStockTrackingApp/
     └── stok.db            # SQLite veritabanı (otomatik oluşturulur)
 ```
 
-### 📸 Ekran Görüntüleri
-
-#### Gösterge Paneli
-![Gösterge Paneli](https://via.placeholder.com/800x450.png?text=Dashboard+Ekran+Goruntusu)
-
-#### Ürün Yönetimi
-![Ürünler](https://via.placeholder.com/800x450.png?text=Urun+Listesi+Ekran+Goruntusu)
-
-#### Stok Hareketi
-![Stok Hareketi](https://via.placeholder.com/800x450.png?text=Stok+Hareketi+Ekran+Goruntusu)
 
 ### 🤝 Katkıda Bulunma
 
